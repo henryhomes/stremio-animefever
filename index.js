@@ -13,7 +13,7 @@ const manifest = {
     name: 'Anime from AnimeFever',
     description: 'Anime from AnimeFever',
     resources: ['catalog', 'meta', 'stream'],
-    types: ['series'],
+    types: ['series', 'movie'],
     idPrefixes: ['kitsu:'],
     catalogs: [
       {
@@ -207,7 +207,7 @@ addon.defineStreamHandler(args => {
       }
       const idParts = id.split(':')
       const kitsuId = 'kitsu:' + idParts[1]
-      const episode = idParts[idParts.length -1] || null
+      const episode = idParts.length > 2 ? idParts[idParts.length -1] : 1
       db.map.get(kitsuId, afId => {
         if (afId) {
           findEpisode(afId, episode, null, epData => {
