@@ -9,7 +9,7 @@ const package = require('./package')
 const manifest = {
     id: 'org.animefever.anime',
     version: package.version,
-    logo: 'https://animefever.tv/themes/app/static/images/default-avatar.png',
+    logo: 'https://www.googleapis.com/download/storage/v1/b/graphicker/o/img%2Fworks%2F5%2F4961%2F875b56ea41f99c9535aa59cf5f346fd8.png?generation=1482729411428000&alt=media',
     name: 'Anime from AnimeFever',
     description: 'Anime from AnimeFever',
     resources: ['catalog', 'meta', 'stream'],
