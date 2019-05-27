@@ -212,10 +212,8 @@ addon.defineStreamHandler(args => {
         if (afId) {
           findEpisode(afId, episode, null, epData => {
             if (epData) {
-              console.log(epData)
-              console.log(endpoint + 'episode/' + epData.id)
               needle.get(endpoint + 'episode/' + epData.id, { headers }, (err, resp, body) => {
-                const stream = (body || {}).stream || ''
+                const stream = ((body || {}).data || {}).stream || ''
                 if (stream) {
                   needle.get(stream, { headers }, (err, resp, body) => {
                     if (body && body.length) {
