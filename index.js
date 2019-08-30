@@ -1,14 +1,13 @@
 const needle = require('needle')
+const request = require('request')
 const async = require('async')
 const pUrl = require('url').parse
 const m3u = require('m3u8-parsed')
 const db = require('./lib/cache')
 
-const package = require('./package')
-
 const manifest = {
     id: 'org.animefever.anime',
-    version: package.version,
+    version: '0.0.1',
     logo: 'https://www.googleapis.com/download/storage/v1/b/graphicker/o/img%2Fworks%2F5%2F4961%2F875b56ea41f99c9535aa59cf5f346fd8.png?generation=1482729411428000&alt=media',
     name: 'Anime from AnimeFever',
     description: 'Anime from AnimeFever',
@@ -35,7 +34,7 @@ const manifest = {
     ]
 }
 
-const { addonBuilder }  = require('stremio-addon-sdk')
+const { addonBuilder, getRouter }  = require('stremio-addon-sdk')
 
 const addon = new addonBuilder(manifest)
 
@@ -70,10 +69,10 @@ addon.defineCatalogHandler(args => {
 
     const page = 1
 
-    let url = endpoint + 'filter?hasVideos=true&page=' + page + '&search='
+    let url = endpoint + 'list?search=&hasVideos=true'
 
     if (args.extra.search)
-      url += encodeURIComponent(args.extra.search)
+      url = endpoint + 'global-search'
 
     if (args.extra.genre)
       genres.some(genre => {
@@ -95,7 +94,7 @@ addon.defineCatalogHandler(args => {
       if (redisMetas)
         resolve({ metas: redisMetas, cacheMaxAge: 86400 })
 
-      needle.get(url, { headers }, (err, resp, body) => {
+      function respCb(err, resp, body) {
         const series = (body || {}).data || []
         const metas = []
         if (series.length) {
@@ -131,7 +130,12 @@ addon.defineCatalogHandler(args => {
           series.forEach(el => { queue.push(el) })
         } else if (!redisMetas)
           reject(new Error('Catalog error: '+JSON.stringify(args)))
-      })
+      }
+
+      if (!args.extra.search)
+        needle.get(url, { headers }, respCb)
+      else
+        request({ uri: url, method: 'POST', json: { input: args.extra.search } }, respCb)
 
     })
 
@@ -196,56 +200,52 @@ function getHost(str) {
   return host
 }
 
+const { proxy } = require('internal')
+
 addon.defineStreamHandler(args => {
   return new Promise((resolve, reject) => {
     const id = args.id
     const cacheMaxAge = 604800
-    db.get(id, cacheMaxAge, cached => {
-      if (cached) {
-        resolve(cached)
-        return
-      }
-      const idParts = id.split(':')
-      const kitsuId = 'kitsu:' + idParts[1]
-      const episode = idParts.length > 2 ? idParts[idParts.length -1] : 1
-      db.map.get(kitsuId, afId => {
-        if (afId) {
-          findEpisode(afId, episode, null, epData => {
-            if (epData) {
-              needle.get(endpoint + 'episode/' + epData.id, { headers }, (err, resp, body) => {
-                const stream = ((body || {}).data || {}).stream || ''
-                if (stream) {
-                  needle.get(stream, { headers }, (err, resp, body) => {
-                    if (body && body.length) {
-                      const playlist = m3u(body)
-                      const playlists = (playlist || {}).playlists || []
-                      function toStream(obj) {
-                        const res = (((obj || {}).attributes || {}).RESOLUTION || {}).height || ''
-                        let streamUrl = stream.split('/')
-                        streamUrl[streamUrl.length -1] = obj.uri
-                        streamUrl = streamUrl.join('/')                      
-                        return {
-                          title: (res ? res + 'p' : 'Stream') + '\n' + getHost(stream),
-                          url: streamUrl
-                        }
+    const idParts = id.split(':')
+    const kitsuId = 'kitsu:' + idParts[1]
+    const episode = idParts.length > 2 ? idParts[idParts.length -1] : 1
+    db.map.get(kitsuId, afId => {
+      if (afId) {
+        findEpisode(afId, episode, null, epData => {
+          if (epData) {
+            needle.get(endpoint + 'episode/' + epData.id, { headers }, (err, resp, body) => {
+              const stream = ((body || {}).data || {}).stream || ''
+              if (stream) {
+                needle.get(stream, { headers }, (err, resp, body) => {
+                  if (body && body.length) {
+                    const playlist = m3u(body)
+                    const playlists = (playlist || {}).playlists || []
+                    function toStream(obj) {
+                      const res = (((obj || {}).attributes || {}).RESOLUTION || {}).height || ''
+                      let streamUrl = stream.split('/')
+                      streamUrl[streamUrl.length -1] = obj.uri
+                      streamUrl = streamUrl.join('/')                      
+                      return {
+                        title: (res ? res + 'p' : 'Stream') + '\n' + getHost(stream),
+                        url: proxy.addProxy(streamUrl)
                       }
-                      const sources = playlists.map(toStream)
-                      if (sources && sources.length) {
-                        db.set(id, sources)
-                        resolve({ streams: sources, cacheMaxAge })
-                      } else
-                        reject(new Error('Playlist empty for: ' + id))
                     }
-                  })
-                } else
-                  reject(new Error('No playlist url for: '+ id))
-              })
-            } else
-              reject('Could not get stream sources for: ' + id)
-          })
-        } else 
-          reject('Could not get streams for: ' + id)
-      })
+                    const sources = playlists.map(toStream)
+                    if (sources && sources.length) {
+                      db.set(id, sources)
+                      resolve({ streams: sources, cacheMaxAge })
+                    } else
+                      reject(new Error('Playlist empty for: ' + id))
+                  }
+                })
+              } else
+                reject(new Error('No playlist url for: '+ id))
+            })
+          } else
+            reject('Could not get stream sources for: ' + id)
+        })
+      } else 
+        reject('Could not get streams for: ' + id)
     })
   })
 })
@@ -282,5 +282,5 @@ const getGenres = () => {
 }
 
 module.exports = getGenres().then(() => {
-  return addon.getInterface()
+  return getRouter(addon.getInterface())
 })
