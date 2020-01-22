@@ -8,7 +8,7 @@ const db = require('./lib/cache')
 const manifest = {
     id: 'org.animefever.anime',
     version: '0.0.1',
-    logo: 'https://www.googleapis.com/download/storage/v1/b/graphicker/o/img%2Fworks%2F5%2F4961%2F875b56ea41f99c9535aa59cf5f346fd8.png?generation=1482729411428000&alt=media',
+    logo: 'https://pms-images.now.sh/anime-fever.jpg',
     name: 'Anime from AnimeFever',
     description: 'Anime from AnimeFever',
     resources: ['catalog', 'meta', 'stream'],
