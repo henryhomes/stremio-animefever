@@ -69,7 +69,7 @@ addon.defineCatalogHandler(args => {
 
     const page = 1
 
-    let url = endpoint + 'list?search=&hasVideos=true'
+    let url = endpoint + 'lists?search=&hasVideos=true'
 
     if (args.extra.search)
       url = endpoint + 'global-search'
