@@ -142,7 +142,7 @@ addon.defineCatalogHandler(args => {
   })
 })
 
-const kitsuEndpoint = 'https://addon.stremio-kitsu.cf'
+const kitsuEndpoint = 'https://stremio-kitsu.now.sh'
 
 addon.defineMetaHandler(args => {
   return new Promise((resolve, reject) => {
